@@ -19,8 +19,10 @@ import org.springframework.stereotype.Component;
 
 import com.rcm.app.dbConnector.dao.ConnectionDao;
 import com.rcm.app.dbConnector.dao.ConnectionDaoImpl;
+import com.rcm.app.dbConnector.model.ColumnsData;
 import com.rcm.app.dbConnector.model.Connection;
 import com.rcm.app.dbConnector.model.DBDetails;
+import com.rcm.app.dbConnector.model.TablesData;
 import com.rcm.app.dbConnector.util.Constants;
 
 @Component
@@ -97,17 +99,20 @@ public class ConnectorServiceImpl extends Constants implements ConnectorService 
 	public DBDetails fetchDBDetails(Connection con) throws Exception {
 		LOGGER.info("fetchDBDetails :"+START);
 		
+		String conStr = String.format("jdbc:mysql://%s/%s?user=%s&password=%s", con.getHostname(), con.getDbName(), con.getUsername(), con.getPassword());
 		java.sql.Connection conn = null;
-		Map<String, Set<String>> TableColMap = new HashMap<String, Set<String>>();
+		/*Key : table name, Value: list of columns*/
+		Map<String, List<String>> TableColMap = new HashMap<String, List<String>>();
+		/*Key : table name, Value: Map with key as row count and value as row entries inserted into a list*/
 		Map<String, Map<Integer, List<String>>> tableDataMap = new HashMap<String, Map<Integer,List<String>>>();
 		Set<String> tables = new HashSet<String>();
-		Set<String> columns = new HashSet<String>();
+		List<String> columns = new ArrayList<String>();
 		List<String> data = new ArrayList<String>();
+		/*Map with key as row count and value as row entries inserted into a list*/
 		Map<Integer, List<String>> colIdMap = new HashMap<Integer, List<String>>();
 		Statement stmt = null;
 		DBDetails details = new DBDetails();
 		
-		String conStr = String.format("jdbc:mysql://%s/%s?user=%s&password=%s", con.getHostname(), con.getDbName(), con.getUsername(), con.getPassword());
 		
 		try {
 			conn = DriverManager.getConnection(conStr);
@@ -124,7 +129,7 @@ public class ConnectorServiceImpl extends Constants implements ConnectorService 
 				for (String tableName : tables) {
 					LOGGER.debug("Table :"+tableName);
 					ResultSet rsCol = stmt.executeQuery("Show columns from " + tableName);
-					columns = new HashSet<String>();
+					columns = new ArrayList<String>();
 					int col = 1;
 					while (rsCol.next()) {
 						LOGGER.debug("Type :" + rsCol.getMetaData().getColumnTypeName(col));
@@ -138,12 +143,9 @@ public class ConnectorServiceImpl extends Constants implements ConnectorService 
 			/*Loop through the map prepared earlier to fetch the column data for each of the tables. 
 			 *The column count is used to loop through the result set to retrieve corresponding column data entries.
 			 */
-			for (Map.Entry<String, Set<String>> entry : TableColMap.entrySet()) {
+			for (Map.Entry<String, List<String>> entry : TableColMap.entrySet()) {
 				data = new ArrayList<String>();
 				colIdMap = new HashMap<Integer, List<String>>();
-				
-				LOGGER.debug("Table :"+entry.getKey());
-				LOGGER.debug("Column size :"+entry.getValue().size());
 
 				ResultSet rsdata = stmt.executeQuery("select * from " + entry.getKey());
 				int rowNo = 1;
@@ -167,6 +169,121 @@ public class ConnectorServiceImpl extends Constants implements ConnectorService 
 			throw new Exception(e);
 		} 
 		return details;
+	}
+
+	/**
+	 * This method returns table data consisting of table name, columns and their types, records associated with each table
+	 */
+	@Override
+	public List<TablesData> fetchTablesData(Connection con) throws Exception {
+		LOGGER.info("fetchTablesData :"+START);
+		
+		List<TablesData> tablesData = new ArrayList<TablesData>();
+		Set<String> tables = new HashSet<String>();
+		List<String> attributes = new ArrayList<String>();
+		TablesData tableData = null;
+		java.sql.Connection conn = null;
+		Statement stmt = null;
+		Statement stmt2 = null;
+		String conStr = String.format("jdbc:mysql://%s/%s?user=%s&password=%s", con.getHostname(), con.getDbName(), con.getUsername(), con.getPassword());
+		
+		conn = DriverManager.getConnection(conStr);
+		stmt = stmt2 = conn.createStatement();
+		ResultSet rs = stmt.executeQuery("Show Tables");
+		
+		
+		/*Fetch the list of tables in the db and add to the set*/
+		while (rs.next()) {
+			tables.add(rs.getObject(1).toString());
+		}
+		if (tables.size() > 0) {
+			for (String tableName : tables) {
+				tableData = new TablesData();
+				tableData.setTableName(tableName);
+				ResultSet rsCol = stmt.executeQuery("SELECT column_name FROM information_schema.columns WHERE table_name like '" + tableName +"'");
+				attributes = new ArrayList<>();
+				while (rsCol.next()) {
+					attributes.add(rsCol.getObject(1).toString());
+				}
+				rsCol.close();
+
+				tableData.setAttributes(attributes);
+				ResultSet rsRowCount = stmt2.executeQuery("SELECT count(*) FROM " + tableName);
+				System.out.println("here..");
+				rsRowCount.next();
+				tableData.setRecordCount(Integer.valueOf(rsRowCount.getObject(1).toString()));
+				
+				tablesData.add(tableData);
+				
+			}
+		}
+		
+		conn.close();
+		
+		LOGGER.info("fetchTablesData :"+END);
+		return tablesData;
+		
+	}
+
+	/**
+	 * This method builds column stats like min, max, average & median for an applicable column
+	 * 
+	 */
+	@Override
+	public Map<String, List<ColumnsData>> fetchColumnsData(Connection con) throws Exception {
+		LOGGER.info("fetchColumnsData :"+START);
+		
+		Map<String, List<ColumnsData>> columnData = new HashMap<String, List<ColumnsData>>();
+		List<ColumnsData> cData = new ArrayList<ColumnsData>();
+		Set<String> tables = new HashSet<String>();
+		String conStr = String.format("jdbc:mysql://%s/%s?user=%s&password=%s", con.getHostname(), con.getDbName(), con.getUsername(), con.getPassword());
+		java.sql.Connection conn = null;
+		Statement stmt = null;
+		Statement stmt1 = null;
+		Statement stmt2 = null;
+		
+		conn = DriverManager.getConnection(conStr);
+		stmt = conn.createStatement();
+		stmt1 = conn.createStatement();
+		stmt2 = conn.createStatement();
+		ResultSet rs = stmt.executeQuery("Show Tables");
+		while (rs.next()) {
+			String tname = rs.getObject(1).toString();
+			tables.add(rs.getObject(1).toString());
+			ResultSet rsCol = stmt1.executeQuery("Show Columns from " + rs.getObject(1).toString());
+			cData = new ArrayList<ColumnsData>();
+			while(rsCol.next()) {
+				if(rsCol.getObject(2).toString().contains("int")) {
+					
+					ResultSet rsCol2 = stmt2.executeQuery("SELECT min("+rsCol.getObject(1)+") , max("+rsCol.getObject(1)+"), avg("+rsCol.getObject(1)+") from "+tname);
+					ColumnsData colData = new ColumnsData();
+					colData.setColName(rsCol.getObject(1).toString());
+					rsCol2.next();
+					
+					if(rsCol2.getObject(1) != null) {
+						colData.setMin(rsCol2.getObject(1).toString());
+					}
+					
+					if(rsCol2.getObject(2) != null) {
+						colData.setMax(rsCol2.getObject(2).toString());
+						System.out.println(rsCol2.getObject(2).toString());
+					}
+					
+					if(rsCol2.getObject(3) != null) {
+						colData.setAvg(rsCol2.getObject(3).toString());
+						System.out.println(rsCol2.getObject(3).toString());
+					}
+					
+					cData.add(colData);
+				}
+			}
+			columnData.put(tname, cData);
+		}
+		
+		conn.close();
+		
+		LOGGER.info("fetchColumnsData :"+END);
+		return columnData;
 	}
 
 }
