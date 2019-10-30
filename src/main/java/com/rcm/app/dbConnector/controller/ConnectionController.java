@@ -1,5 +1,7 @@
 package com.rcm.app.dbConnector.controller;
 
+import java.sql.SQLException;
+
 import javax.validation.Valid;
 
 import org.slf4j.Logger;
@@ -254,6 +256,10 @@ public class ConnectionController extends Constants {
 				LOGGER.info("validateAndConnectTODb :"+END);
 				return "validate-connection";
 			}
+		} catch (SQLException e) {
+			LOGGER.error("validateAndConnectTODb :"+ERROR +" "+e.getMessage());
+			model.addAttribute("errors", "Unable to connect to this DB. Check connection details");
+			return "validate-connection";
 		} catch (Exception e) {
 			
 			LOGGER.error("validateAndConnectTODb :"+ERROR +" "+e.getMessage());

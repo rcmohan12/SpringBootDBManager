@@ -166,7 +166,8 @@ public class ConnectorServiceImpl extends Constants implements ConnectorService 
 
 			conn.close();
 		} catch (SQLException e) {
-			throw new Exception(e);
+			LOGGER.error(ERROR + " : " +e.getMessage());
+			throw new SQLException(e);
 		} 
 		return details;
 	}
