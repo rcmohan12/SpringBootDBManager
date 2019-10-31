@@ -52,7 +52,7 @@ public class ConnectionDaoImpl extends Constants implements ConnectionDao {
 	@Override
 	public Connection getConnectionById(long conId) {
 		LOGGER.info("getConnectionById :"+START);
-		System.out.println("...");
+
 		return entityManager.find(Connection.class, conId);
 	}
 
@@ -85,18 +85,18 @@ public class ConnectionDaoImpl extends Constants implements ConnectionDao {
 	}
 
 	@Override
-	public Boolean validateConnection(Connection con) {
+	public Boolean validateConnection(Connection con) throws Exception {
 		LOGGER.info("validateConnection :"+START);
 		
 		Connection dbCon = getConnectionById(con.getId());
-		if(con.getPassword().equals(dbCon.getPassword())) {
+		if(dbCon != null && con.getPassword().equals(dbCon.getPassword())) {
 			
 			LOGGER.info("validateConnection :"+END);
 			return true;
 		} else {
 			
-			LOGGER.info("validateConnection :"+END);
-			return false;
+			LOGGER.error("validateConnection :"+END);
+			throw new Exception("Connection Doesnt Exist. Recheck values");
 		}
 		
 	}

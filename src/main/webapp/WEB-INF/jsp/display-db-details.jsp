@@ -14,7 +14,7 @@
 				<thead >
 					<tr>
 						<c:forEach items="${tables.value}" var="columns">
-							<c:forEach items="${columns}" var="column">
+							<c:forEach items="${columns.field}" var="column">
 								<th width="20%" style = "background: lightgrey;">${column}</th>
 							</c:forEach>
 						</c:forEach>

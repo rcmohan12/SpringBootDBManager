@@ -9,7 +9,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -18,7 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.rcm.app.dbConnector.dao.ConnectionDao;
-import com.rcm.app.dbConnector.dao.ConnectionDaoImpl;
+import com.rcm.app.dbConnector.model.ColumnProperties;
 import com.rcm.app.dbConnector.model.ColumnsData;
 import com.rcm.app.dbConnector.model.Connection;
 import com.rcm.app.dbConnector.model.DBDetails;
@@ -102,17 +101,18 @@ public class ConnectorServiceImpl extends Constants implements ConnectorService 
 		String conStr = String.format("jdbc:mysql://%s/%s?user=%s&password=%s", con.getHostname(), con.getDbName(), con.getUsername(), con.getPassword());
 		java.sql.Connection conn = null;
 		/*Key : table name, Value: list of columns*/
-		Map<String, List<String>> TableColMap = new HashMap<String, List<String>>();
+		Map<String, List<ColumnProperties>> TableColMap = new HashMap<String, List<ColumnProperties>>();
 		/*Key : table name, Value: Map with key as row count and value as row entries inserted into a list*/
 		Map<String, Map<Integer, List<String>>> tableDataMap = new HashMap<String, Map<Integer,List<String>>>();
-		Set<String> tables = new HashSet<String>();
-		List<String> columns = new ArrayList<String>();
-		List<String> data = new ArrayList<String>();
+		Set<String> tables = null;
+		List<String> columns = null;
+		List<String> data = null;
+		ColumnProperties cProp = null;
+		List<ColumnProperties> cPropList = null;
 		/*Map with key as row count and value as row entries inserted into a list*/
 		Map<Integer, List<String>> colIdMap = new HashMap<Integer, List<String>>();
 		Statement stmt = null;
 		DBDetails details = new DBDetails();
-		
 		
 		try {
 			conn = DriverManager.getConnection(conStr);
@@ -120,10 +120,10 @@ public class ConnectorServiceImpl extends Constants implements ConnectorService 
 			ResultSet rs = stmt.executeQuery("Show Tables");
 
 			/*Fetch the list of tables in the db and add to the set*/
+			tables = new HashSet<String>();
 			while (rs.next()) {
 				tables.add(rs.getObject(1).toString());
 			}
-			
 			/*Provided there are tables, loop through the set prepared earlier and fetch the columns (along with column type type) for each of the tables*/
 			if (tables.size() > 0) {
 				for (String tableName : tables) {
@@ -131,19 +131,25 @@ public class ConnectorServiceImpl extends Constants implements ConnectorService 
 					ResultSet rsCol = stmt.executeQuery("Show columns from " + tableName);
 					columns = new ArrayList<String>();
 					int col = 1;
+					cPropList = new ArrayList<ColumnProperties>();
 					while (rsCol.next()) {
-						LOGGER.debug("Type :" + rsCol.getMetaData().getColumnTypeName(col));
+						cProp = new ColumnProperties();
+						
+						cProp.setField(rsCol.getObject(1).toString());
+						cProp.setType(rsCol.getObject(2).toString());
+						cProp.setNullable(rsCol.getObject(3).toString());
+						cProp.setKey(rsCol.getObject(4).toString());
+						cProp.setDefaultVal(""+rsCol.getObject(5));
 						columns.add(rsCol.getObject(1).toString() + "(" + rsCol.getMetaData().getColumnTypeName(col) + ")");
-						col++;
+						cPropList.add(cProp);	
 					}
-					TableColMap.put(tableName, columns);
+					TableColMap.put(tableName, cPropList);
 				}
 			}
-			
 			/*Loop through the map prepared earlier to fetch the column data for each of the tables. 
 			 *The column count is used to loop through the result set to retrieve corresponding column data entries.
 			 */
-			for (Map.Entry<String, List<String>> entry : TableColMap.entrySet()) {
+			for (Map.Entry<String, List<ColumnProperties>> entry : TableColMap.entrySet()) {
 				data = new ArrayList<String>();
 				colIdMap = new HashMap<Integer, List<String>>();
 
@@ -166,11 +172,13 @@ public class ConnectorServiceImpl extends Constants implements ConnectorService 
 
 			conn.close();
 		} catch (SQLException e) {
+			e.printStackTrace();
 			LOGGER.error(ERROR + " : " +e.getMessage());
 			throw new SQLException(e);
 		} 
 		return details;
 	}
+	
 
 	/**
 	 * This method returns table data consisting of table name, columns and their types, records associated with each table
@@ -210,7 +218,6 @@ public class ConnectorServiceImpl extends Constants implements ConnectorService 
 
 				tableData.setAttributes(attributes);
 				ResultSet rsRowCount = stmt2.executeQuery("SELECT count(*) FROM " + tableName);
-				System.out.println("here..");
 				rsRowCount.next();
 				tableData.setRecordCount(Integer.valueOf(rsRowCount.getObject(1).toString()));
 				
@@ -267,12 +274,10 @@ public class ConnectorServiceImpl extends Constants implements ConnectorService 
 					
 					if(rsCol2.getObject(2) != null) {
 						colData.setMax(rsCol2.getObject(2).toString());
-						System.out.println(rsCol2.getObject(2).toString());
 					}
 					
 					if(rsCol2.getObject(3) != null) {
 						colData.setAvg(rsCol2.getObject(3).toString());
-						System.out.println(rsCol2.getObject(3).toString());
 					}
 					
 					cData.add(colData);

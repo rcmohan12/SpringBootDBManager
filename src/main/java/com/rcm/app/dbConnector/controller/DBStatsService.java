@@ -45,8 +45,7 @@ public class DBStatsService extends Constants {
 			if(conService.validateConnection(con)) {
 
 				meta = conService.fetchDBDetails(con);
-				throw new Exception();
-//				return meta;
+				return meta;
 			} 
 		} catch (Exception e) {
 			LOGGER.error(ERROR + " : " + e.getMessage());
