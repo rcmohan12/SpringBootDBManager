@@ -6,7 +6,7 @@ CREATE TABLE connections (
               port SMALLINT, 
     		  dbname VARCHAR(255), 
               username VARCHAR(255), 
-    		  password VARCHAR(255)
+    		  password CHAR(32)
 );
 DROP TABLE IF EXISTS userDetails;
 
