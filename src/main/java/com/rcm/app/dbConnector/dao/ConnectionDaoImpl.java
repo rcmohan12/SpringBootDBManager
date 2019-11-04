@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.rcm.app.dbConnector.model.Connection;
+import com.rcm.app.dbConnector.util.ConnectionUtils;
 import com.rcm.app.dbConnector.util.Constants;
 
 
@@ -25,6 +26,12 @@ public class ConnectionDaoImpl extends Constants implements ConnectionDao {
 	@PersistenceContext	
 	private EntityManager entityManager;
 	
+	/**
+	 * This method fetches all the connections defined by the user
+	 * 
+	 * @return
+	 * @throws Exception
+	 */
 	@SuppressWarnings("unchecked")
 	@Override
 	public List<Connection> getConnections() throws Exception {
@@ -40,6 +47,12 @@ public class ConnectionDaoImpl extends Constants implements ConnectionDao {
 		return cons;
 	}
 
+	/**
+	 * This method takes in a connection object defined by user and saves it to the DB
+	 * 
+	 * @param con
+	 * @throws Exception
+	 */
 	@Override
 	public void addNewConnection(Connection con) {
 		LOGGER.info("addNewConnection :"+START);
@@ -49,6 +62,13 @@ public class ConnectionDaoImpl extends Constants implements ConnectionDao {
 		LOGGER.info("addNewConnection :"+END);
 	}
 
+	/**
+	 * This method accepts the connection id and retrieves the corresponding connection from the DB
+	 * 
+	 * @param conId
+	 * @return
+	 * @throws Exception
+	 */
 	@Override
 	public Connection getConnectionById(long conId) {
 		LOGGER.info("getConnectionById :"+START);
@@ -56,6 +76,12 @@ public class ConnectionDaoImpl extends Constants implements ConnectionDao {
 		return entityManager.find(Connection.class, conId);
 	}
 
+	/**
+	 * This method accepts a connection object that has been modified by the user and updates the corresponding record in the DB
+	 * 
+	 * @param con
+	 * @throws Exception
+	 */
 	@Override
 	public void updateConnection(Connection con) {
 		LOGGER.info("updateConnection :"+START);
@@ -75,6 +101,12 @@ public class ConnectionDaoImpl extends Constants implements ConnectionDao {
 		LOGGER.info("updateConnection :"+END);
 	}
 
+	 /**
+     * This method accepts the con id (PK) of a particular connection and uses it to find and delete corresponding record in the DB
+     * 
+     * @param conId
+     * @throws Exception
+     */
 	@Override
 	public void deleteConnection(long conId) {
 		LOGGER.info("deleteConnection :"+START);
@@ -84,13 +116,23 @@ public class ConnectionDaoImpl extends Constants implements ConnectionDao {
 		LOGGER.info("deleteConnection :"+END);
 	}
 
+	/**
+     * This method uses the connection object details to validate 
+     * 
+     * @param con
+     * @return
+     * @throws Exception
+     */
 	@Override
 	public Boolean validateConnection(Connection con) throws Exception {
 		LOGGER.info("validateConnection :"+START);
 		
 		Connection dbCon = getConnectionById(con.getId());
-		if(dbCon != null && con.getPassword().equals(dbCon.getPassword())) {
-			
+		if(dbCon != null && ConnectionUtils.encrypt(con.getPassword()).equals(dbCon.getPassword())) {
+			con.setDbName(dbCon.getDbName());
+			con.setHostname(dbCon.getHostname());
+			con.setPort(dbCon.getPort());
+			con.setUsername(dbCon.getUsername());
 			LOGGER.info("validateConnection :"+END);
 			return true;
 		} else {

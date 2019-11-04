@@ -22,6 +22,7 @@ import com.rcm.app.dbConnector.model.ColumnsData;
 import com.rcm.app.dbConnector.model.Connection;
 import com.rcm.app.dbConnector.model.DBDetails;
 import com.rcm.app.dbConnector.model.TablesData;
+import com.rcm.app.dbConnector.util.ConnectionUtils;
 import com.rcm.app.dbConnector.util.Constants;
 
 @Component
@@ -43,6 +44,7 @@ public class ConnectorServiceImpl extends Constants implements ConnectorService 
 	public void addNewConnection(Connection con) throws Exception {
 		LOGGER.info("addNewConnection :"+START);
 		
+		con.setPassword(ConnectionUtils.encrypt(con.getPassword()));
 		daoObj.addNewConnection(con);
 		
 		LOGGER.info("addNewConnection :"+END);
@@ -71,6 +73,7 @@ public class ConnectorServiceImpl extends Constants implements ConnectorService 
 	public void updateConnection(Connection con) throws Exception {
 		LOGGER.info("updateConnection :"+START);
 		
+		con.setPassword(ConnectionUtils.encrypt(con.getPassword()));
 		daoObj.updateConnection(con);
 		
 		LOGGER.info("updateConnection :"+END);
@@ -97,7 +100,7 @@ public class ConnectorServiceImpl extends Constants implements ConnectorService 
 	@Override
 	public DBDetails fetchDBDetails(Connection con) throws Exception {
 		LOGGER.info("fetchDBDetails :"+START);
-		
+				
 		String conStr = String.format("jdbc:mysql://%s/%s?user=%s&password=%s", con.getHostname(), con.getDbName(), con.getUsername(), con.getPassword());
 		java.sql.Connection conn = null;
 		/*Key : table name, Value: list of columns*/

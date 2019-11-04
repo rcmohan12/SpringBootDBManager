@@ -1,5 +1,10 @@
 package com.rcm.app.dbConnector.util;
 
+/**
+ * 
+ * @author rcm
+ *
+ */
 public class Constants {
 	
 	public final String START = "START";
