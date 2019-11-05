@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Arrays;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,8 @@ public class ConnectorServiceImpl extends Constants implements ConnectorService 
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ConnectorServiceImpl.class);
 	
+	private final List<String> numberColTypes =  Arrays.asList("tinyint", "smallint", "mediumint", "int", "bigint", "decimal", "bit", "float", "double");
+
 	@Autowired
 	ConnectionDao daoObj;
 	
@@ -257,6 +260,8 @@ public class ConnectorServiceImpl extends Constants implements ConnectorService 
 		stmt = conn.createStatement();
 		stmt1 = conn.createStatement();
 		stmt2 = conn.createStatement();
+		int median = 0;
+		int resultSetSize = 0;
 		ResultSet rs = stmt.executeQuery("Show Tables");
 		while (rs.next()) {
 			String tname = rs.getObject(1).toString();
@@ -264,6 +269,7 @@ public class ConnectorServiceImpl extends Constants implements ConnectorService 
 			ResultSet rsCol = stmt1.executeQuery("Show Columns from " + rs.getObject(1).toString());
 			cData = new ArrayList<ColumnsData>();
 			while(rsCol.next()) {
+				median = 0;
 				if(rsCol.getObject(2).toString().contains("int")) {
 					
 					ResultSet rsCol2 = stmt2.executeQuery("SELECT min("+rsCol.getObject(1)+") , max("+rsCol.getObject(1)+"), avg("+rsCol.getObject(1)+") from "+tname);
@@ -282,6 +288,26 @@ public class ConnectorServiceImpl extends Constants implements ConnectorService 
 					if(rsCol2.getObject(3) != null) {
 						colData.setAvg(rsCol2.getObject(3).toString());
 					}
+					
+					
+					ResultSet sortedRecords = stmt2.executeQuery("SELECT "+rsCol.getObject(1)+" from "+tname+" order by "+rsCol.getObject(1)+" desc");
+					List<Integer> records = new ArrayList<Integer>();
+					while(sortedRecords.next()) {
+						records.add(Integer.parseInt(sortedRecords.getObject(1).toString()));
+					}
+					
+					resultSetSize = records.size();
+					if(resultSetSize > 1) {
+						if (resultSetSize/2 == 0) {
+							median = (records.get(resultSetSize/2) + records.get(resultSetSize/2 +1))/2;
+						} else {
+							median = records.get(resultSetSize/2);
+						}
+					} else if ( resultSetSize == 1) {
+						median = records.get(0);
+					}
+					
+					colData.setMedian(median+"");
 					
 					cData.add(colData);
 				}
